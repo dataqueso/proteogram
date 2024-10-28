@@ -1,3 +1,15 @@
+# User defined
+.DS_Store
+test.*
+poetry.lock
+*.pdf
+data/
+pdb_*
+msa/
+*.pth
+config/
+tmp/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
