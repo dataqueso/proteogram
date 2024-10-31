@@ -15,6 +15,7 @@ import warnings
 import pyrotein as pr
 
 from Bio.SCOP import Scop
+from Bio import SeqIO
 from Bio.PDB.PDBParser import PDBParser, PDBConstructionWarning
 from Bio.PDB.Polypeptide import PPBuilder
 
@@ -23,6 +24,7 @@ from proteogram.constants import (
     HYDROPHOBICITY_LIST,
     CHARGE_LIST
 )
+from proteogram.utils import read_yaml
 
 
 # Distance cutoff for measuring possible residue interactions in Angstroms
@@ -139,31 +141,15 @@ def get_sequence(pdb_file):
 
 if __name__ == '__main__':
 
-    scope_test_set = os.path.join('data',
-                                  'human_proteome_scope_experiment_ft',
-                                  'human_proteome_scope_sampled_filenames.txt')
-    scope_structures_dir = os.path.join('data',
-                                        'scope2.08',
-                                        'scope2.08',
-                                        'pdbstyle-2.08')
-    scope_cla_file = os.path.join('data',
-                                  'scope2.08',
-                                  'dir.cla.scope.2.08-stable.txt')
-    scope_des_file = os.path.join('data',
-                                  'scope2.08',
-                                  'dir.des.scope.2.08-stable.txt')
-    scope_hie_file = os.path.join('data',
-                                  'scope2.08',
-                                  'dir.hie.scope.2.08-stable.txt')
-    training_structures_dir = os.path.join('data',
-                                           'human_proteome_scope_experiment_fold_ft',
-                                           'human_proteome_scope_training_structures')
-    training_proteograms_dir = os.path.join('data',
-                                           'human_proteome_scope_experiment_fold_ft',
-                                           'human_proteome_scope_training_proteograms')
-    label_df_out = os.path.join('data',
-                                    'human_proteome_scope_experiment_fold_ft',
-                                    'scope2.08_annotations_for_pdb.tsv')
+    config = read_yaml('config.yml')
+    scope_eval_set = config['scope_eval_set']
+    scope_structures_dir = config['scope_structures_dir']
+    scope_cla_file = config['scope_cla_file']
+    scope_des_file = config['scope_des_file']
+    scope_hie_file = config['scope_hie_file']
+    training_structures_dir = config['training_structures_dir']
+    training_proteograms_dir = config['training_proteograms_dir']
+    label_df_out = config['label_df_out']
 
     # All scope 2.08 structure files
     scope_struct_files =  glob.glob(os.path.join(scope_structures_dir,
@@ -202,7 +188,7 @@ if __name__ == '__main__':
 
     # What proteins are we already using for testing proteograms
     sampled_proteins = []
-    with open(scope_test_set, 'r') as f:
+    with open(scope_eval_set, 'r') as f:
         for line in f:
             sampled_proteins.append(line.rstrip())
 

@@ -9,6 +9,7 @@ msa/
 *.pth
 config/
 tmp/
+config.yml
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

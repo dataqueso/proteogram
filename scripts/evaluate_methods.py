@@ -12,9 +12,8 @@ import shutil
 
 from Bio.SCOP import Scop
 
+from proteogram.utils import read_yaml
 
-# Number of top matches returned (k)
-TOP_K = 5
 
 def read_gtalign_results(gtalign_results_dir):
     """Read gtalign results into a pandads dataframe"""
@@ -36,7 +35,7 @@ def read_gtalign_results(gtalign_results_dir):
         with open(file, 'r') as fin:
             i = 0
             for line in fin:
-                if i >= idx and i < (idx + TOP_K):
+                if i >= idx and i < (idx + top_k):
                     pdb_id = ''
                     try:
                         pdb_id = re.search('/d(.*?)\.ent', line).group(1).upper()
@@ -45,25 +44,26 @@ def read_gtalign_results(gtalign_results_dir):
                         pass
                     tmp.append(pdb_id)
                 i+=1
-                if i >= (idx + TOP_K):
+                if i >= (idx + top_k):
                     break
         results.append(tmp)
 
     return pd.DataFrame(results)
 
 if __name__ == '__main__':
-    # Files and folders (output gets recreated)
-    scope_label_file = './data/queries_scope_gtalign_experiment/scope_pdbs_from_downloaded_structures_list.txt'
-    proteogram_sim_results = './data/queries_scope_gtalign_experiment/results_fold_ft/proteogram_similarity_results.tsv'
-    proteogram_dir = './data/queries_scope_gtalign_experiment/proteograms_gtalign_list'
-    gtalign_results_dir = './data/queries_scope_gtalign_experiment/gtalign_out'
-    search_images_dir = './data/queries_scope_gtalign_experiment/results_fold_ft_images_search'
-    save_bad_searches_dir = './data/queries_scope_gtalign_experiment/bad_proteogram_searches_fold_ft'
-    save_good_searches_dir = './data/queries_scope_gtalign_experiment/good_proteogram_searches_fold_ft'
+    # Files and folders
+    config = read_yaml('config.yml')
+    top_k = config['top_k']
+    scope_label_file = config['scope_label_file']
+    proteogram_sim_results = config['proteogram_sim_results']
+    gtalign_results_dir = config['gtalign_results_dir']
+    search_images_dir = config['search_images_dir']
+    save_bad_searches_dir = config['save_bad_searches_dir']
+    save_good_searches_dir = config['save_good_searches_dir']
 
-    scope_cla_handle = './data/dir.cla.scope.2.08-stable.txt'
-    scope_des_handle = './data/dir.des.scope.2.08-stable.txt'
-    scope_hie_handle = './data/dir.hie.scope.2.08-stable.txt'
+    scope_cla_handle = config['scope_cla_file']
+    scope_des_handle = config['scope_des_file']
+    scope_hie_handle = config['scope_hie_file']
 
     # Create some output directories (delete and recreate if exists)
     if os.path.exists(save_bad_searches_dir):
@@ -156,14 +156,14 @@ if __name__ == '__main__':
                 tp_fold+=1
             if query_class == target_class:
                 tp_class+=1
-        precision_at_ks_fams.append(tp_fam/TOP_K)
-        precision_at_ks_sfams.append(tp_sfam/TOP_K)
-        precision_at_ks_folds.append(tp_fold/TOP_K)
-        precision_at_ks_classes.append(tp_class/TOP_K)
-        # Save images of those with no family agreement (tp/TOP_K)
+        precision_at_ks_fams.append(tp_fam/top_k)
+        precision_at_ks_sfams.append(tp_sfam/top_k)
+        precision_at_ks_folds.append(tp_fold/top_k)
+        precision_at_ks_classes.append(tp_class/top_k)
+        # Save images of those with no family agreement (tp/top_k)
         pdb_id = os.path.basename(prot_file)[0:4]
         chain_id = os.path.basename(prot_file)[5]
-        score_for_top_sims = tp_fold/TOP_K
+        score_for_top_sims = tp_fold/top_k
         if score_for_top_sims == 0.2:
             to_copy = f'{pdb_id}_{chain_id}_top_sims.jpg'
             shutil.copy(os.path.join(search_images_dir,
@@ -256,10 +256,10 @@ if __name__ == '__main__':
                 tp_fold+=1
             if query_class == target_class:
                 tp_class+=1
-        precision_at_ks_fams.append(tp_fam/TOP_K)
-        precision_at_ks_sfams.append(tp_sfam/TOP_K)
-        precision_at_ks_folds.append(tp_fold/TOP_K)
-        precision_at_ks_classes.append(tp_class/TOP_K)
+        precision_at_ks_fams.append(tp_fam/top_k)
+        precision_at_ks_sfams.append(tp_sfam/top_k)
+        precision_at_ks_folds.append(tp_fold/top_k)
+        precision_at_ks_classes.append(tp_class/top_k)
     print(f'gtalign average precision@K for families = {np.mean(precision_at_ks_fams)}')
     print(f'gtalign average precision@K for superfamilies = {np.mean(precision_at_ks_sfams)}')
     print(f'gtalign average precision@K for folds = {np.mean(precision_at_ks_folds)}')
