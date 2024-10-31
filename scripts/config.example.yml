@@ -1,0 +1,32 @@
+# for create_proteograms.py
+structures_dir: ''
+proteograms_dir: ''
+
+# for make_training_data.py
+scope_eval_set: ''
+scope_structures_dir: ''
+scope_cla_file: 'dir.cla.scope.2.08-stable.txt'
+scope_des_file: 'dir.des.scope.2.08-stable.txt'
+scope_hie_file: 'dir.hie.scope.2.08-stable.txt'
+training_structures_dir: ''
+training_proteograms_dir: ''
+label_df_out: ''
+
+# for train_model.py
+num_epochs: 15
+learning_rate: 0.001
+batch_size: 8
+
+# for measure_similarity.py
+model_file:  ''
+top_k: 5
+embed_file: ''
+proteogram_sim_results: ''
+save_dir: ''
+search_images_dir: ''
+
+# for evaluate_methods.py
+scope_label_file: ''
+gtalign_results_dir: ''
+save_bad_searches_dir: ''
+save_good_searches_dir: ''

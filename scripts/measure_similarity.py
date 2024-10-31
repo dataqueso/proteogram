@@ -1,21 +1,18 @@
 """
-Proteogram (image) search using CNN for image embeddings
+Proteogram (image) search
 """
 from time import time
 import glob
 import os
 import pandas as pd
+import numpy as np
 import pickle
 import shutil
 import torch
 
 from proteogram.image_similarity import Img2Vec
+from proteogram.utils import read_yaml
 
-
-# Number of top matches to return
-TOP_K = 5
-# CNN choice (see proteogram source code for more)
-MODEL = './data/human_proteome_scope_experiment_fold_ft/human_proteome_scope_training_proteograms/resnet18_finetuned.pt'
 
 if __name__ == '__main__':
     torch.multiprocessing.set_start_method('spawn')
@@ -23,13 +20,14 @@ if __name__ == '__main__':
     # changes to proteograms)
     embed = True
 
-    # Files and folders (outputs get recreated)
-
-    embed_file = './data/human_proteome_scope_experiment/results_fold_ft/proteogram_embeddings.pkl'
-    results_file = './data/human_proteome_scope_experiment/results_fold_ft/proteogram_similarity_results.tsv'
-    dataset_dir = './data/human_proteome_scope_experiment/proteograms_human_scope_all_chains'
-    save_dir = './data//human_proteome_scope_experiment/results_fold_ft'
-    save_images_dir = './data/human_proteome_scope_experiment/results_fold_ft_images_search'
+    config = read_yaml('config.yml')
+    top_k = config['top_k']
+    model_file = config['model_file']
+    embed_file = config['embed_file']
+    results_file = config['proteogram_sim_results']
+    dataset_dir = config['proteograms_dir']
+    save_dir = config['save_dir']
+    save_images_dir =config['search_images_dir']
 
     # Create some output directories (delete and recreate if exists)
     if os.path.exists(save_dir):
@@ -43,7 +41,7 @@ if __name__ == '__main__':
 
     start = time()
     # Initialize Img2Vec with model from torchvision
-    img_sim = Img2Vec(MODEL, weights='DEFAULT')
+    img_sim = Img2Vec(model_file, weights='DEFAULT')
     print(f'Took {time()-start} seconds to initialize Img2Vec object.')
 
     # Create dataset and create embeddings

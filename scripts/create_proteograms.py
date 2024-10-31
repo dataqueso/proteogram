@@ -1,13 +1,16 @@
 import glob
 import os
 from time import time
+import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import shutil
 import warnings
 from tqdm import tqdm
+import yaml
 
 import pyrotein as pr
+from Bio import SeqIO
 from Bio.PDB.PDBParser import PDBParser, PDBConstructionWarning
 from Bio.PDB.Polypeptide import PPBuilder
 
@@ -16,6 +19,7 @@ from proteogram.constants import (
     HYDROPHOBICITY_LIST,
     CHARGE_LIST
 )
+from proteogram.utils import read_yaml
 
 
 # Distance cutoff for measuring possible residue interactions in Angstroms
@@ -159,15 +163,17 @@ def get_sequence(pdb_file):
         seq += pp.get_sequence()
     return seq
 
-
 if __name__ == '__main__':
-    structures_dir = './data/queries_scope_gtalign_experiment/scope_pdbs_from_downloaded_structures'
-    proteograms_output_dir = './data/queries_scope_gtalign_experiment/proteograms_gtalign_list'
 
-    # If not exists, make output dir
+    config = read_yaml('config.yml')
+    structures_dir = config['structures_dir']
+    proteograms_output_dir = config['proteograms_dir']
+
+    # If the output dir exists, don't recreate, otherwise make one
     if os.path.exists(proteograms_output_dir):
-        shutil.rmtree(proteograms_output_dir)
-    os.makedirs(proteograms_output_dir)
+        print(f'Directory {proteograms_output_dir} exists, will use.')
+    else:
+        os.makedirs(proteograms_output_dir)
 
     start = time()
     pdb_files = glob.glob(os.path.join(structures_dir, '**', '*.ent'), recursive=True)

@@ -1,24 +1,29 @@
 """
-Finetune model based on transfer learning as in the following tutorial:
+Finetune model based on transfer learning in the following tutorial:
 https://pytorch.org/tutorials/beginner/transfer_learning_tutorial.html
-Watch out for emtpy folders in the DataLoader (remove any empty folders first).
+Watch out for emtpy folders in the DataLoader (remove any empty folders).
 """
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import torch.optim as optim
 from torch.optim import lr_scheduler
+import torch.backends.cudnn as cudnn
 from torch.utils.data import WeightedRandomSampler
 import numpy as np
-from torchvision import datasets, models
+import torchvision
+from torchvision import datasets, models, transforms
 from torchvision.transforms import v2
+import matplotlib.pyplot as plt
 import time
 import os
+from PIL import Image
 from tempfile import TemporaryDirectory
 
+from proteogram.utils import read_yaml
 
-NUM_EPOCHS = 15
-LR = 0.001
-BATCH_SIZE = 8
+
+config = read_yaml('config.yml')
 
 # Data augmentation and normalization for training
 # Just normalization for validation
@@ -45,10 +50,11 @@ data_transforms = {
     ]),
 }
 
-# Create datasets
-data_dir = 'data/human_proteome_scope_experiment_class_ft/human_proteome_scope_training_proteograms'
+data_dir = config['proteograms_dir']
+
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
+# Create datasets
 image_datasets = {x: datasets.ImageFolder(os.path.join(data_dir, x),
                                           data_transforms[x])
                   for x in ['train', 'val']}
@@ -66,9 +72,11 @@ sampler = WeightedRandomSampler(sample_weights.type('torch.DoubleTensor'), len(s
 
 # Create data loaders
 dataloaders = {}
-dataloaders['train'] = torch.utils.data.DataLoader(image_datasets['train'], batch_size=BATCH_SIZE,
+dataloaders['train'] = torch.utils.data.DataLoader(image_datasets['train'],
+                                                   batch_size=config['batch_size'],
                                              num_workers=4, sampler=sampler)
-dataloaders['val'] = torch.utils.data.DataLoader(image_datasets['val'], batch_size=BATCH_SIZE,
+dataloaders['val'] = torch.utils.data.DataLoader(image_datasets['val'],
+                                                 batch_size=config['batch_size'],
                                              shuffle=True, num_workers=4)
 dataset_sizes = {x: len(image_datasets[x]) for x in ['train', 'val']}
 class_names = image_datasets['train'].classes
@@ -148,22 +156,34 @@ def train_model(model, criterion, optimizer, scheduler, num_epochs=10):
 # Load pre-trained model
 model_ft = models.resnet18(weights='IMAGENET1K_V1')
 num_ftrs = model_ft.fc.in_features
-
-# Reset last layer to account for the new number of classes
+## Here the size of each output sample is set to 2.
+## Alternatively, it can be generalized to ``nn.Linear(num_ftrs, len(class_names))``.
 model_ft.fc = nn.Linear(num_ftrs, len(class_names))
+
+# VGG19
+#model_ft = models.vgg19(weights='IMAGENET1K_V1')
+#num_ftrs = model_ft.classifier[0].in_features
+
+#input_size = model_ft.classifier[0].in_features    
+#model_ft.classifier = nn.Sequential(
+#    nn.Linear(input_size, 128), nn.ReLU(),
+#    nn.Linear(128, len(class_names)))
 
 model_ft = model_ft.to(device)
 
 criterion = nn.CrossEntropyLoss()
 
 # Observe that all parameters are being optimized
-optimizer_ft = optim.SGD(model_ft.parameters(), lr=LR, momentum=0.9)
+optimizer_ft = optim.SGD(model_ft.parameters(),
+                         lr=config['learning_rate'],
+                         momentum=0.9)
 
 # Decay LR by a factor of 0.1 every 7 epochs
+#exp_lr_scheduler = lr_scheduler.StepLR(optimizer_ft, step_size=7, gamma=0.1)
 exp_lr_scheduler = lr_scheduler.ReduceLROnPlateau(optimizer_ft, 'min', factor=0.1)
 
 # Train and evaluate (all done in train_model function)
 model_ft = train_model(model_ft, criterion, optimizer_ft, exp_lr_scheduler,
-                       num_epochs=NUM_EPOCHS)
+                       num_epochs=config['num_epochs'])
 
 torch.save(model_ft, os.path.join(data_dir, 'resnet18_finetuned.pt'))
