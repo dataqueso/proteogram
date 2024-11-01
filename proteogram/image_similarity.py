@@ -1,5 +1,5 @@
 """
-Image retrieval approach based on https://github.com/totogot/ImageSimilarity
+Image search approach based on https://github.com/totogot/ImageSimilarity
 """
 import torch
 import os
@@ -11,10 +11,12 @@ from torch.multiprocessing import Pool
 from tqdm import tqdm
 
 import matplotlib.pyplot as plt
+import numpy as np
 import torch.nn as nn
 import torchvision.models as models
 import torchvision.transforms as transforms
 
+from kmeans_pytorch import kmeans
 from PIL import Image, ImageDraw, ImageFont
 
 
@@ -29,12 +31,33 @@ class Img2Vec:
         Must align to the naming convention specified on Pytorch documentation:
         https://pytorch.org/vision/main/models.html#classification
         For supported model architectures see self.embed_dict below
-    weights: str object specifying the pretrained weights to load into model.
+    weights: str object specifying the pretrained weights to load into model or
+        a file path to a supported ResNet model.
         Only weights supported by Pytorch torchvision library can be accessed.
         Current functionality reverts to DEFAULT weights if no specified.
+
+    See also:
+    -----------
+    Img2Vec.embed_dataset(): embed passed images as feature vectors
+    Img2Vec.save_dataset(): save embedded dataset to file for future loading
+    Img2Vec.load_dataset(): load previously embedded dataset of feature vectors
+    Img2Vec.similarities(): calculate cosine similarities for the embedding dataset
+    Img2Vec.cluster_dataset(): group embedded images into specified n clusters
+
+    Example:
+    -----------
+
+    ImgSim = imgsim.Img2Vec('resnet50', weights='DEFAULT')
+    ImgSim.embed_dataset('[EXAMPLE PATH TO DIRECTORY OF IMAGES]')
+
+    ImgSim.save_dataset('[OUTPUT PATH FOR SAVING EMBEDDEDINGS]')
+
+    ImgSim.similarities(n=5)
+
+    ImgSim.cluster_dataset(nclusters=6, display=True)
     """
 
-    def __init__(self, model_name_or_path, weights="DEFAULT"):
+    def __init__(self, model_name_or_path, weights="DEFAULT", fine_tuned_model_path=''):
         # dictionary defining the supported NN architectures
         self.embed_dict = {
             "resnet50": self.obtain_children,
@@ -58,6 +81,8 @@ class Img2Vec:
         self.embed = self.assign_layer()
         self.cosine = nn.CosineSimilarity(dim=1)
         self.dataset = {}
+        self.image_clusters = {}
+        self.cluster_centers = {}
         self.sim_dict = {}
 
     def validate_model(self, model_name_or_path):
@@ -110,7 +135,9 @@ class Img2Vec:
 
     def initiate_model(self):
         if self.architecture == "resnet_ft":
-            model = torch.load(self.weights, weights_only=False)
+            model = torch.load(self.weights,
+                               weights_only=False,
+                               map_location=torch.device(self.device))
         else:
             m = getattr(
                 models, self.architecture
@@ -218,15 +245,51 @@ class Img2Vec:
             sim = self.cosine(embedding1, embedding2)[0].item()
         return (sim, image_path1, image_path2)
 
-    def similarities(self, dataset_dir, n=10, save_results_dir=None, save_result_images_dir=None):
+    def sim_calc_new_embedding(self,
+                               image_path_query,
+                               image_path_target,
+                               embedding_query,
+                               embedding_target):
+        with torch.no_grad():
+            sim = self.cosine(embedding_query, embedding_target)[0].item()
+        return (sim, image_path_target)
+
+    def similarities_new_image(self,
+                               query_image_path,
+                               n=10,
+                               save_results_dir=None,
+                               save_result_images_dir=None):
+        embedding_new = self.embed_image(query_image_path).detach()
+
+        with Pool(os.cpu_count()-2) as pool:
+           results = pool.starmap(self.sim_calc_new_embedding,
+                               [(query_image_path, image_path_j, embedding_new, embedding_j) for\
+                                 (image_path_j, embedding_j) in self.dataset.items()])
+        
+        scores = {}
+        for (sim, image_path_j) in results:
+            scores[image_path_j] = sim
+        
+        scores_n_arr = sorted(scores.items(),
+                            key=lambda item: item[1],
+                            reverse=True)[:n]
+
+        # # If there's a dir specified in save_result_images_dir, create result image
+        self.save_images(query_image_path,
+                         save_result_images_dir,
+                         scores_n_arr=scores_n_arr)
+
+        return scores_n_arr
+
+    def similarities(self, n=10, save_results_dir=None, save_result_images_dir=None):
         """
-        Function for creating the similarity matrix between embeddings using cosine
-        similarity.
+        Function for creating the similarity matrix between embeddings in the dataset
+        using cosine similarity.
 
         Parameters:
         -----------
         save_results_dir : str
-            Directory to save the search results file.
+            Directory to save the search results tsv file.
         save_result_images : str
             Directory to store search image results (top K images).
         n : int
@@ -238,7 +301,7 @@ class Img2Vec:
         cosine = nn.CosineSimilarity(dim=1)
 
         # Create a dict of similarities (a dict of dict of scores), e.g:
-        # this looks like --> sim_dict[image_i] = {dict[image_0], dict[image_1], ...} 
+        # this looks like --> sim_dict[image_i] = {dict[image_0], dict[image_1], ...}
         for image_path_i, embedding_i in tqdm(self.dataset.items()):
             scores = {}
             for image_path_j, embedding_j in self.dataset.items():
@@ -273,18 +336,22 @@ class Img2Vec:
 
         return sim_calc_time
 
-
-    def save_images(self, query_file, save_dir):
+    def save_images(self, query_file, save_dir, scores_n_arr=None):
         """Save similar images from similarity search"""
         images_files = [query_file]
-        images_files.extend([target for target, _ in self.sim_dict[query_file]])
-        scores = ['']
-        scores.extend([f'{score:.2f}' for _, score in self.sim_dict[query_file]])
+        if not scores_n_arr:
+            images_files.extend([target for target, _ in self.sim_dict[query_file]])
+            scores = ['']
+            scores.extend([f'{score:.2f}' for _, score in self.sim_dict[query_file]])
+        else:
+            images_files.extend([file for file, _ in scores_n_arr])
+            scores = ['']
+            scores.extend([f'{score:.2f}' for _, score in scores_n_arr])            
         images = [Image.open(target) for target in images_files]
 
         max_height = 1000
         total_width = max_height * len(images)
-        font_size = max_height // 20
+        font_size = max_height // 15
         path = os.path.dirname(__file__)
         font = ImageFont.truetype(os.path.join(path,'fonts','FreeSansBold.ttf'), font_size)
 
@@ -379,3 +446,34 @@ class Img2Vec:
 
         fig.tight_layout()
 
+        return
+
+    def display_clusters(self):
+        for num in self.cluster_centers.keys():
+            # print(f'Displaying cluster: {str(cluster_num)}')
+
+            img_list = [k for k, v in self.image_clusters.items() if v == num]
+            self.plot_list(img_list, num)
+
+        return
+
+    def cluster_dataset(self, nclusters, dist="euclidean", display=False):
+        vecs = torch.stack(list(self.dataset.values())).squeeze()
+        imgs = list(self.dataset.keys())
+        np.random.seed(100)
+
+        cluster_ids_x, cluster_centers = kmeans(
+            X=vecs, num_clusters=nclusters, distance=dist, device=self.device
+        )
+
+        # assign clusters to images
+        self.image_clusters = dict(zip(imgs, cluster_ids_x.tolist()))
+
+        # store cluster centres
+        cluster_num = list(range(0, len(cluster_centers)))
+        self.cluster_centers = dict(zip(cluster_num, cluster_centers.tolist()))
+
+        if display:
+            self.display_clusters()
+
+        return
