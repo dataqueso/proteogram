@@ -5,7 +5,6 @@ from time import time
 import glob
 import os
 import pandas as pd
-import numpy as np
 import pickle
 import shutil
 import torch
@@ -15,7 +14,6 @@ from proteogram.utils import read_yaml
 
 
 if __name__ == '__main__':
-    torch.multiprocessing.set_start_method('spawn')
     # Run embedding vs loading saved embeddings (True if any 
     # changes to proteograms)
     embed = True
@@ -25,23 +23,18 @@ if __name__ == '__main__':
     model_file = config['model_file']
     embed_file = config['embed_file']
     results_file = config['proteogram_sim_results']
-    dataset_dir = config['proteograms_dir']
-    save_dir = config['save_dir']
+    dataset_dir = config['proteograms_for_sim_dir']
     save_images_dir =config['search_images_dir']
 
-    # Create some output directories (delete and recreate if exists)
-    if os.path.exists(save_dir):
-        shutil.rmtree(save_dir)
-    os.makedirs(save_dir)
-
-    # Create some output directories (delete and recreate if exists)
+    # If the output dir exists, don't recreate, otherwise make one
     if os.path.exists(save_images_dir):
-        shutil.rmtree(save_images_dir)
-    os.makedirs(save_images_dir)
+        print(f'Directory {save_images_dir} exists, will use and may overwrite.')
+    else:
+        os.makedirs(save_images_dir)
 
     start = time()
     # Initialize Img2Vec with model from torchvision
-    img_sim = Img2Vec(model_file, weights='DEFAULT')
+    img_sim = Img2Vec(model_file, dataset_dir=dataset_dir, weights='DEFAULT', device='cuda')
     print(f'Took {time()-start} seconds to initialize Img2Vec object.')
 
     # Create dataset and create embeddings
@@ -54,15 +47,16 @@ if __name__ == '__main__':
                pickle.dump(img_sim.dataset, pklout)
            print(f'Took {time()-start} seconds to create image embeddings.')
         else:
-           with open(embed_file, 'rb') as pklin:
-                img_sim.dataset = pickle.load(pklin)
+            if embed_file:
+                with open(embed_file, 'rb') as pklin:
+                    img_sim.dataset = pickle.load(pklin)
             
         # Search to find similar images using cosine-similarity amongst embeddings
         # Save search results as images (TOP_K) to save_images_dir
         start = time()
-        sim_time = img_sim.similarities(dataset_dir=dataset_dir,
-                                        n=TOP_K,
-                                        save_result_images_dir=save_images_dir)
+        sim_time = img_sim.similarities(n=top_k,
+                                        save_result_images_dir=save_images_dir,
+                                        use_prev_embeddings=True)
         
         print(f'Took {sim_time} seconds to calculate similarities / perform search.')
         print(f'Took {time()-start} seconds overall (including optional image result saving).')
@@ -70,18 +64,15 @@ if __name__ == '__main__':
         prot_files = glob.glob(os.path.join(dataset_dir, '**', '*.jpg'), recursive=True)
 
         # Create dataframe of results
-        scores_tmp = [[''] * TOP_K] * len(prot_files)
-        df_res = pd.DataFrame(scores_tmp, columns=[[str(i) for i in range(TOP_K)]])
+        scores_tmp = [[''] * top_k] * len(prot_files)
+        df_res = pd.DataFrame(scores_tmp, columns=[[str(i) for i in range(top_k)]])
         df_res['query_image'] = prot_files
         for i, image_path in enumerate(prot_files):
             try:
                 scores = img_sim.sim_dict[image_path]
-                #if len(scores) < TOP_K+1:
-                #    for i in range(TOP_K+1-len(scores)):
-                #        scores.append(('',0))
                 # Locate the row to update and assign scores
                 row_i = df_res[df_res['query_image'] == image_path].index[i]
-                df_res.iloc[row_i,:TOP_K] = [f'{a},{b}' for (a, b) in scores]
+                df_res.iloc[row_i,:top_k] = [f'{a},{b}' for (a, b) in scores]
             except KeyError as e:
                 print(f'Key error for {e}')
         # Reorder cols

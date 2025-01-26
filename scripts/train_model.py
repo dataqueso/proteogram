@@ -50,7 +50,8 @@ data_transforms = {
     ]),
 }
 
-data_dir = config['proteograms_dir']
+data_dir = config['training_data_dir']
+model_file = config['model_file']
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -74,10 +75,12 @@ sampler = WeightedRandomSampler(sample_weights.type('torch.DoubleTensor'), len(s
 dataloaders = {}
 dataloaders['train'] = torch.utils.data.DataLoader(image_datasets['train'],
                                                    batch_size=config['batch_size'],
-                                             num_workers=4, sampler=sampler)
+                                                   num_workers=8,
+                                                   shuffle=True)
 dataloaders['val'] = torch.utils.data.DataLoader(image_datasets['val'],
                                                  batch_size=config['batch_size'],
-                                             shuffle=True, num_workers=4)
+                                                 num_workers=8,
+                                                 shuffle=True)
 dataset_sizes = {x: len(image_datasets[x]) for x in ['train', 'val']}
 class_names = image_datasets['train'].classes
 
@@ -154,8 +157,13 @@ def train_model(model, criterion, optimizer, scheduler, num_epochs=10):
     return model
 
 # Load pre-trained model
-model_ft = models.resnet18(weights='IMAGENET1K_V1')
+if config['pretrained'] == 'True':
+    model_ft = models.resnet18(weights='IMAGENET1K_V1')
+else:
+    # No pretrained weights (no transfer learning)
+    model_ft = models.resnet18()
 num_ftrs = model_ft.fc.in_features
+print(num_ftrs)
 ## Here the size of each output sample is set to 2.
 ## Alternatively, it can be generalized to ``nn.Linear(num_ftrs, len(class_names))``.
 model_ft.fc = nn.Linear(num_ftrs, len(class_names))
@@ -186,4 +194,9 @@ exp_lr_scheduler = lr_scheduler.ReduceLROnPlateau(optimizer_ft, 'min', factor=0.
 model_ft = train_model(model_ft, criterion, optimizer_ft, exp_lr_scheduler,
                        num_epochs=config['num_epochs'])
 
-torch.save(model_ft, os.path.join(data_dir, 'resnet18_finetuned.pt'))
+# Save model as file
+try:
+    torch.save(model_ft, os.path.join(data_dir, f"resnet18_lr{config['learning_rate']}_bs{config['batch_size']}.pt"))
+except:
+    torch.save(model_ft, os.path.join(data_dir, 'resnet18_new.pt'))
+

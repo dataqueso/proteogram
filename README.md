@@ -1,6 +1,12 @@
-# Proteogram: Compression of Protein Structures into Image Data for Information Retrieval
+# Proteogram: an image embedding-based search approach to protein structure similarity
 
 This repo has the source code for the `proteogram` project and paper.
+
+## Abstract
+
+**Motivation:**  Huge strides have been made in the last decade in the detection of protein similarity across evolutionarily remote distances using protein structure alignment for known structures (sequence-order dependent/independent, sequence-alignment dependent/independent). These methods accurately identify similar structures according to various measures such as TM-score, RMSD, and cosine-similarity. The main challenges remaining are computational efficiency, gains in accuracy, and new enhancements to the structural data representations, such as the incorporation of physicochemical properties and evolutionary information.  We have developed Proteogram, a new approach to protein structure search that leverages computer vision models to create embedding vectors for a cosine-similarity-based search across a database of Proteograms, wherein each Proteogram represents a single protein monomer as image data.  The Proteogram is a novel data type consisting of three categories of residue-level information:  alpha-carbon backbone distances, hydrophobicity similarities, and charge similarities.  These three dimensions of data are stacked to form an NxN 3-channel data structure (where N is the residue length), which can, consequently, be captured on disk as an RGB image and are inherently sequence-alignment independent. Proteograms not only represent spatial similarity through distograms (the pair-wise residue alpha-carbon distances), but also physicochemical properties of residues through the integration of hydrophobicity values and charge states. Thus, this work outlines a novel and efficient approach to the current challenges in protein structure similarity, alignment, and search.
+
+**Results:** Two state-of-the-art methods in structure alignment and similarity search, USalign and GTalign, serve as points of comparison to the method introduced in our study.  Two evaluation datasets are used to understand search performance, one from the GTalign study and a new one introduced in this paper. On the GTalign evaluation dataset, superfamily and family performance could not be discerned easily, however on a more representative dataset, the Proteogram approach scores highest in Precision@K for superfamily and family-level search results.  Additionally, for the search step itself, the Proteogram approach has the highest throughput (according to pair-wise alignments per minute) of the three methods (1.63 times faster than GTalign and 89.4 times faster than USalign). This unique and promising technique shows the gains that can be achieved by accounting for physicochemical information in addition to spatial information with a data structure compatible with advanced computer vision models.
 
 ## Getting started
 
@@ -69,6 +75,13 @@ To add a package dependency to the environment (and add to the dev dependencies 
 poetry add <packagename> --dev
 ```
 
-## Workflow for paper where the proteogram approach was compared to GTalign
+## Workflow for paper where the proteogram approach was compared to GTalign and USalign
+
+
+### Overview
 
 ![](assets/Workflow-Structure-Compression.png)
+
+### Proteogram generation
+
+![](assets/proteogram_generation.png)

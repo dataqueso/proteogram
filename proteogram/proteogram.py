@@ -24,7 +24,7 @@ class Proteogram:
                  sequence_len_upper_cutoff=1e9):
         self.pdb_path = pdb_path
         self.atom_distance_cutoff = atom_distance_cutoff
-        self.hydrophobicity_cutoff = hydrophobicity_delta_cutoff
+        self.hydrophobicity_delta_cutoff = hydrophobicity_delta_cutoff
         self.sequence_len_lower_cutoff = sequence_len_lower_cutoff
         self.sequence_len_upper_cutoff = sequence_len_upper_cutoff
 

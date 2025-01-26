@@ -20,9 +20,17 @@ warnings.filterwarnings("ignore", category=PDBConstructionWarning)
 if __name__ == '__main__':
 
     config = read_yaml('config.yml')
-    structures_dir = config['structures_dir']
-    proteograms_output_dir = config['proteograms_dir']
-
+    structures_dir = config['scope_structures_dir']
+    proteograms_output_dir = config['eval_proteograms_dir']
+    # Only create proteograms for these structures in the input limit file
+    limit_to_these_structs = []
+    if 'limit_file' in config.keys():
+        limit_file = config['limit_file']
+        with open(limit_file, 'r') as f:
+            for line in f:
+                limit_to_these_structs.append(line.strip())
+    else:
+        limit_to_these_structs = None
     # If the output dir exists, don't recreate, otherwise make one
     if os.path.exists(proteograms_output_dir):
         print(f'Directory {proteograms_output_dir} exists, will use.')
@@ -35,6 +43,9 @@ if __name__ == '__main__':
     seq_out_of_bounds = 0
     for pdb_file in tqdm(pdb_files):
         bname =  os.path.basename(pdb_file)
+        if limit_to_these_structs:
+            if bname not in limit_to_these_structs:
+                continue
         # SCOPe naming format processed here
         chain_id =bname[1:5].upper()+':'+ bname[5].upper()
         proteogram = Proteogram(pdb_file,

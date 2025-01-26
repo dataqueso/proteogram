@@ -17,31 +17,12 @@ import shutil
 import warnings
 
 from Bio.PDB.PDBList import PDBList
-from Bio import PDB
+from Bio import SeqIO, PDB
+
+from proteogram.utils import split_by_chain_and_save, ChainSelect
 
 
 warnings.filterwarnings("ignore", category=PDB.PDBParser.PDBConstructionWarning)
-
-class ChainSelect(PDB.Select):
-    def __init__(self, chain):
-        self.chain = chain
-
-    def accept_chain(self, chain):
-        if chain.get_id() == self.chain:
-            return 1
-        else:
-            return 0
-
-def split_by_chain_and_save(pdb_file, chain_id, scope_sid,  scope_pdbs_dir, parser):
-    """
-    Parse the single PDB file downloaded with biopython into it's chains and
-    save with the scope sid name in the scope_pdbs_dir
-    """
-    structure = parser.get_structure(pdb_file, pdb_file)
-    writer = PDB.PDBIO()
-    filename = os.path.join(scope_pdbs_dir, f'{scope_sid}.ent')
-    writer.set_structure(structure)
-    writer.save(filename, ChainSelect(chain_id))
 
 if __name__ == '__main__':
     # Files and folders (please make sure all folders exist already)
@@ -91,4 +72,4 @@ if __name__ == '__main__':
         for idx in pdb_ids_idxs:
             chain_id = chain_ids[idx]
             sid = scope_sids[idx]
-            split_by_chain_and_save(pdb_files[i], chain_id, sid,  scope_pdbs_dir, parser)
+            split_by_chain_and_save(pdb_files[i], chain_id, sid, scope_pdbs_dir)

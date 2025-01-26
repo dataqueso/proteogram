@@ -6,6 +6,7 @@ move overlapping structure IDs to a separate folder.
 import glob
 import os
 from tqdm import tqdm
+import random
 import shutil
 
 from Bio.SCOP import Scop

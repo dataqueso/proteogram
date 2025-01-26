@@ -1,32 +1,43 @@
-# for create_proteograms.py
-structures_dir: ''
-proteograms_dir: ''
+# for create_proteograms.py (and will be used in train_model.py)
+limit_file: '' # optional, limit to these structures, .ent file base name one per line
+structures_dir: '' # all .ent structures (multiple dirs ok)
+proteograms_dir: '' # output dir
 
+# [optional script] for split_structures_into_chains.py
+pdb_download_dir: ''
+  
 # for make_training_data.py
-scope_eval_set: ''
-scope_structures_dir: ''
-scope_cla_file: 'dir.cla.scope.2.08-stable.txt'
-scope_des_file: 'dir.des.scope.2.08-stable.txt'
-scope_hie_file: 'dir.hie.scope.2.08-stable.txt'
-training_structures_dir: ''
-training_proteograms_dir: ''
-label_df_out: ''
+scope_level: '' # family, superfamily, fold or class
+scope_eval_set: '' # file to indicate proteins to be excluded, .ent file base name one per line
+scope_structures_dir: '' # input structures, .ent file format
+scope_cla_file: './data/dir.cla.scope.2.08-stable.txt'
+scope_des_file: './data/dir.des.scope.2.08-stable.txt'
+scope_hie_file: './data/dir.hie.scope.2.08-stable.txt'
+training_structures_dir: '' # copy structures used for proteograms for gtalign runs (for eval)
+training_proteograms_dir: '' # output dir
+label_df_out: '<path>//scope2.08_annotations_for_pdb.tsv' # annotations output file
 
 # for train_model.py
-num_epochs: 15
+training_data_dir: '' # input proteogram dir
+num_epochs: 25
 learning_rate: 0.001
 batch_size: 8
+pretrained: False # True or False
 
 # for measure_similarity.py
-model_file:  ''
+model_file:  '<path>/resnet18.pt'
+proteograms_for_sim_dir: '' # input proteogram dir for similarity search
 top_k: 5
-embed_file: ''
-proteogram_sim_results: ''
-save_dir: ''
-search_images_dir: ''
+embed_file_exists: 'False' # either "True" or "False" if you have "embeddings.pt"
+embed_file: '<path>/embeddings.pt' # name of pytorch tensors file representing embeddings of proteograms
+search_images_dir: '<path>/search_images_dir' # search results (top k protegram hits per query)
+proteogram_sim_results: '<path>/proteogram_similarity_results.tsv' # similarity results (top k) as table
 
 # for evaluate_methods.py
-scope_label_file: ''
-gtalign_results_dir: ''
-save_bad_searches_dir: ''
-save_good_searches_dir: ''
+gtalign_results_dir: '<path>/gtalign_out' # dir name for gtalign output
+usalign_results: './<path>/usalign_out.tsv' # tab-delimited ouptut from USalign
+save_bad_searches_dir: '<path>/bad_proteogram_searches' # dir for poor search result images
+save_good_searches_dir: '<path>/good_proteogram_searches' # dir for very good search result images
+
+# for measure_similarity_single_chain.py
+proteograms_dir_single_search: '' # dir of proteograms to search against
